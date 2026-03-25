@@ -22,6 +22,18 @@ jobs:
           echo "GITHUB_ACTOR=${GITHUB_ACTOR}"
           echo "REPO_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
 
+      - name: Validate Jenkins configuration
+        env:
+          JENKINS_URL: ${{ secrets.JENKINS_URL }}
+          JENKINS_JOB: ${{ secrets.JENKINS_JOB }}
+        run: |
+          set -euo pipefail
+          test -n "${JENKINS_URL:-}" || { echo "Missing required secret: JENKINS_URL"; exit 1; }
+          test -n "${JENKINS_JOB:-}" || { echo "Missing required secret: JENKINS_JOB"; exit 1; }
+          echo "Validated Jenkins configuration"
+          echo "JENKINS_URL=${JENKINS_URL}"
+          echo "JENKINS_JOB=${JENKINS_JOB}"
+
       - name: Trigger Jenkins pipeline
         env:
           JENKINS_URL: ${{ secrets.JENKINS_URL }}
