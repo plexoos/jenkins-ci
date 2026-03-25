@@ -10,6 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug GitHub context
+        run: |
+          set -euxo pipefail
+          echo "GITHUB_EVENT_NAME=${GITHUB_EVENT_NAME}"
+          echo "GITHUB_REF=${GITHUB_REF}"
+          echo "GITHUB_REF_NAME=${GITHUB_REF_NAME}"
+          echo "GITHUB_SHA=${GITHUB_SHA}"
+          echo "GITHUB_REPOSITORY=${GITHUB_REPOSITORY}"
+          echo "GITHUB_SERVER_URL=${GITHUB_SERVER_URL}"
+          echo "GITHUB_ACTOR=${GITHUB_ACTOR}"
+          echo "REPO_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+
       - name: Trigger Jenkins pipeline
         env:
           JENKINS_URL: ${{ secrets.JENKINS_URL }}
@@ -17,6 +29,17 @@ jobs:
           JENKINS_TOKEN: ${{ secrets.JENKINS_TOKEN }}
           JENKINS_JOB: ${{ secrets.JENKINS_JOB }}
         run: |
-          curl -f -X POST \
+          set -euxo pipefail
+          echo "JENKINS_URL=${JENKINS_URL}"
+          echo "JENKINS_JOB=${JENKINS_JOB}"
+          echo "Trigger branch=${GITHUB_REF_NAME}"
+          echo "Trigger commit=${GITHUB_SHA}"
+          echo "Trigger repo=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          curl --show-error --silent \
+            --request POST \
             --user "${JENKINS_USER}:${JENKINS_TOKEN}" \
+            --output /tmp/jenkins-trigger-response.txt \
+            --write-out "HTTP_STATUS=%{http_code}\nREDIRECT_URL=%{redirect_url}\n" \
             "${JENKINS_URL}/job/${JENKINS_JOB}/buildWithParameters?BRANCH_NAME=${GITHUB_REF_NAME}&GIT_COMMIT=${GITHUB_SHA}&REPO_URL=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          echo "Response body:"
+          cat /tmp/jenkins-trigger-response.txt
