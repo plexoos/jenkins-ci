@@ -5,6 +5,12 @@ pipeline {
     timestamps()
   }
 
+  parameters {
+    string(name: 'BRANCH_NAME', defaultValue: 'main', description: 'Branch to build')
+    string(name: 'GIT_COMMIT', defaultValue: '', description: 'Commit SHA to build, optional')
+    string(name: 'REPO_URL', defaultValue: 'https://github.com/plexoos/jenkins-ci.git', description: 'Repository URL')
+  }
+
   environment {
     TEST_IMAGE = 'ghcr.io/star-bnl/star-spack:v0.3.0-root5-gcc485'
   }
@@ -12,6 +18,9 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
+        echo "PARAM_BRANCH_NAME=${params.BRANCH_NAME}"
+        echo "PARAM_GIT_COMMIT=${params.GIT_COMMIT}"
+        echo "PARAM_REPO_URL=${params.REPO_URL}"
         echo "JOB_NAME=${env.JOB_NAME}"
         echo "BUILD_NUMBER=${env.BUILD_NUMBER}"
         echo "BUILD_URL=${env.BUILD_URL}"
@@ -25,7 +34,26 @@ pipeline {
         echo "CHANGE_TARGET=${env.CHANGE_TARGET}"
         echo "GITHUB_REF=${env.GITHUB_REF}"
         echo "GITHUB_SHA=${env.GITHUB_SHA}"
-        checkout scm
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: "*/${params.BRANCH_NAME}"]],
+          userRemoteConfigs: [[url: "${params.REPO_URL}"]]
+        ])
+      }
+    }
+
+    stage('Checkout exact commit if provided') {
+      when {
+        expression { return params.GIT_COMMIT?.trim() }
+      }
+      steps {
+        sh '''
+          set -euxo pipefail
+          echo "Checking out exact commit: ${GIT_COMMIT}"
+          git fetch --all --tags
+          git checkout "${GIT_COMMIT}"
+          git rev-parse HEAD
+        '''
       }
     }
 
@@ -49,6 +77,9 @@ pipeline {
           echo "CHANGE_TARGET=${CHANGE_TARGET:-}"
           echo "GITHUB_REF=${GITHUB_REF:-}"
           echo "GITHUB_SHA=${GITHUB_SHA:-}"
+          echo "PARAM_BRANCH_NAME=${BRANCH_NAME:-}"
+          echo "PARAM_GIT_COMMIT=${GIT_COMMIT:-}"
+          echo "PARAM_REPO_URL=${REPO_URL:-}"
           pwd
           ls -la
           echo "=== Git status ==="
